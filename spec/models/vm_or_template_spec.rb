@@ -1,9 +1,7 @@
 require "spec_helper"
 
 describe VmOrTemplate do
-
   context ".event_by_property" do
-
     context "should add an EMS event" do
       before(:each) do
         Timecop.freeze(Time.now)
@@ -39,12 +37,11 @@ describe VmOrTemplate do
 
     it "should raise an error" do
       err = "Unsupported property type [foo]"
-      lambda {VmOrTemplate.event_by_property('foo', '', '', '')}.should raise_error(err)
+      -> { VmOrTemplate.event_by_property('foo', '', '', '') }.should raise_error(err)
     end
   end
 
   context "#add_ems_event" do
-
     before(:each) do
       @host            = FactoryGirl.create(:host, :name => "host 1")
       @vm              = FactoryGirl.create(:vm_vmware, :name => "vm 1", :location => "/local/path", :host => @host, :uid_ems => "1", :ems_id => 101)
@@ -52,15 +49,14 @@ describe VmOrTemplate do
       @source          = "EVM"
       @event_timestamp = Time.now.utc.iso8601
       @event_hash = {
-          :event_type  => @event_type,
-          :is_task     => false,
-          :source      => @source,
-          :timestamp   => @event_timestamp,
-        }
+        :event_type => @event_type,
+        :is_task    => false,
+        :source     => @source,
+        :timestamp  => @event_timestamp,
+      }
     end
 
     context "should add an EMS Event" do
-
       before(:each) do
         @ipaddress       = "192.268.20.1"
         @hardware        = FactoryGirl.create(:hardware, :vm_or_template_id => @vm.id)
@@ -131,9 +127,7 @@ describe VmOrTemplate do
         EmsEvent.should_receive(:add).with(nil, @event_hash)
         vm_no_host_no_ems.add_ems_event(@event_type, event_msg, @event_timestamp)
       end
-
     end
-
   end
 
   context "#reconfigured_hardware_value?" do
@@ -331,7 +325,6 @@ describe VmOrTemplate do
 
   describe ".cloneable?" do
     context "when the vm_or_template does not exist" do
-
       it "returns false" do
         expect(VmOrTemplate.cloneable?(111)).to eq(false)
       end
@@ -384,9 +377,9 @@ describe VmOrTemplate do
   end
 
   context "Status Methods" do
-    let(:vm)      {FactoryGirl.create(:vm_or_template)}
-    let(:ems)     {FactoryGirl.create(:ext_management_system)}
-    let(:storage) {FactoryGirl.create(:storage)}
+    let(:vm)      { FactoryGirl.create(:vm_or_template) }
+    let(:ems)     { FactoryGirl.create(:ext_management_system) }
+    let(:storage) { FactoryGirl.create(:storage) }
 
     context "with EMS" do
       before { vm.ext_management_system = ems }
@@ -404,7 +397,7 @@ describe VmOrTemplate do
 
   context ".refresh_ems queues refresh for proper class" do
     [:template_vmware, :vm_vmware].each do |vm_or_template|
-      let(:instance) {FactoryGirl.create(vm_or_template)}
+      let(:instance) { FactoryGirl.create(vm_or_template) }
 
       it "#{vm_or_template.to_s.classify}" do
         EmsRefresh.should_receive(:queue_refresh).with([[VmOrTemplate, instance.id]])
@@ -457,6 +450,36 @@ describe VmOrTemplate do
       vm1 =  FactoryGirl.create(:vm_vmware)
       vm2 =  FactoryGirl.create(:vm_vmware)
       expect(VmOrTemplate.batch_operation_supported?(:migrate, [vm1.id, vm2.id])).to eq(true)
+    end
+  end
+
+  context ".set_tenant_from_group" do
+    before { EvmSpecHelper.create_root_tenant }
+    let(:tenant1) { FactoryGirl.create(:tenant, :parent => Tenant.root_tenant) }
+    let(:tenant2) { FactoryGirl.create(:tenant, :parent => Tenant.root_tenant) }
+    let(:group1) { FactoryGirl.create(:miq_group, :tenant => tenant1) }
+    let(:group2) { FactoryGirl.create(:miq_group, :tenant => tenant2) }
+
+    it "assigns the tenant from the group" do
+      expect(FactoryGirl.create(:vm_vmware, :miq_group => group1).tenant).to eq(tenant1)
+    end
+
+    it "assigns the tenant from the group_id" do
+      expect(FactoryGirl.create(:vm_vmware, :miq_group_id => group1.id).tenant).to eq(tenant1)
+    end
+
+    it "assigns the tenant from the group over the tenant" do
+      expect(FactoryGirl.create(:vm_vmware, :miq_group => group1, :tenant => tenant2).tenant).to eq(tenant1)
+    end
+
+    it "uses default tenant via tenancy_mixin" do
+      expect(FactoryGirl.create(:vm_vmware).tenant).to eq(Tenant.root_tenant)
+    end
+
+    it "changes the tenant after changing the group" do
+      vm = FactoryGirl.create(:vm_vmware, :miq_group => group1)
+      vm.update_attributes(:miq_group_id => group2.id)
+      expect(vm.tenant).to eq(tenant2)
     end
   end
 end

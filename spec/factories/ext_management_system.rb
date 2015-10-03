@@ -65,7 +65,7 @@ FactoryGirl.define do
   factory :ems_openstack_infra_with_authentication, :parent => :ems_openstack_infra do
     after :create do |x|
       x.authentications << FactoryGirl.create(:authentication, :userid => "admin", :password => "123456789")
-      x.authentications << FactoryGirl.create(:authentication, :userid => "qpid_user", :password => "qpid_password", :authtype => "amqp")
+      x.authentications << FactoryGirl.create(:authentication, :userid => "user", :password => "abcdefgh", :authtype => "amqp")
     end
   end
 
@@ -95,7 +95,7 @@ FactoryGirl.define do
   factory :ems_openstack_with_authentication, :parent => :ems_openstack do
     after :create do |x|
       x.authentications << FactoryGirl.create(:authentication, :userid => "admin", :password => "123456789")
-      x.authentications << FactoryGirl.create(:authentication, :userid => "qpid_user", :password => "qpid_password", :authtype => "amqp")
+      x.authentications << FactoryGirl.create(:authentication, :userid => "user", :password => "abcdefgh", :authtype => "amqp")
     end
   end
 
@@ -130,7 +130,7 @@ FactoryGirl.define do
   end
 
   factory :ems_azure, :aliases => ["manageiq/providers/azure/cloud_manager"], :class => "ManageIQ::Providers::Azure::CloudManager", :parent => :ems_cloud do
-    zone {  Zone.first || FactoryGirl.create(:zone) }
+    zone { Zone.seed }
   end
 
   factory :ems_azure_with_authentication, :parent => :ems_azure do

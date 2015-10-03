@@ -27,7 +27,7 @@ module ApplianceConsole
 
     # machine host
     def host
-      options[:host] || Env["host"]
+      options[:host] || LinuxAdmin::Hosts.new.hostname
     end
 
     # database hostname
@@ -125,7 +125,13 @@ module ApplianceConsole
 
     def run
       Trollop.educate unless set_host? || key? || database? || tmp_disk? || uninstall_ipa? || install_ipa? || certs?
-      Env[:host] = options[:host] if set_host?
+      if set_host?
+        system_hosts = LinuxAdmin::Hosts.new
+        system_hosts.hostname = options[:host]
+        system_hosts.update_entry(Env["IP"], options[:host])
+        system_hosts.save
+        LinuxAdmin::Service.new("network").restart
+      end
       create_key if key?
       set_db if database?
       config_tmp_disk if tmp_disk?
@@ -140,7 +146,7 @@ module ApplianceConsole
     end
 
     def set_db
-      raise "No v2_key present" unless key_configuration.key_exist?
+      raise "No encryption key (v2_key) present" unless key_configuration.key_exist?
       if local?
         set_internal_db
       else

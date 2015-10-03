@@ -3,16 +3,25 @@ require "spec_helper"
 describe ProviderForemanController do
   render_views
   before(:each) do
-    _, @server, @zone = EvmSpecHelper.create_guid_miq_server_zone
+    @zone = EvmSpecHelper.local_miq_server.zone
 
     @provider = ManageIQ::Providers::Foreman::Provider.create(:name => "test", :url => "10.8.96.102", :zone => @zone)
     @config_mgr = ManageIQ::Providers::Foreman::ConfigurationManager.find_by_provider_id(@provider.id)
     @config_profile = ManageIQ::Providers::Foreman::ConfigurationManager::ConfigurationProfile.create(:name                     => "testprofile",
                                                                                                       :description              => "testprofile",
                                                                                                       :configuration_manager_id => @config_mgr.id)
+    @config_profile2 = ManageIQ::Providers::Foreman::ConfigurationManager::ConfigurationProfile.create(:name                     => "testprofile2",
+                                                                                                       :description              => "testprofile2",
+                                                                                                       :configuration_manager_id => @config_mgr.id)
     @configured_system = ManageIQ::Providers::Foreman::ConfigurationManager::ConfiguredSystem.create(:hostname                 => "test_configured_system",
                                                                                                      :configuration_profile_id => @config_profile.id,
                                                                                                      :configuration_manager_id => @config_mgr.id)
+    @configured_system2a = ManageIQ::Providers::Foreman::ConfigurationManager::ConfiguredSystem.create(:hostname                 => "test2a_configured_system",
+                                                                                                       :configuration_profile_id => @config_profile2.id,
+                                                                                                       :configuration_manager_id => @config_mgr.id)
+    @configured_system2b = ManageIQ::Providers::Foreman::ConfigurationManager::ConfiguredSystem.create(:hostname                 => "test2b_configured_system",
+                                                                                                       :configuration_profile_id => @config_profile2.id,
+                                                                                                       :configuration_manager_id => @config_mgr.id)
     @configured_system_unprovisioned =
       ManageIQ::Providers::Foreman::ConfigurationManager::ConfiguredSystem.create(:hostname                 => "configured_system_unprovisioned",
                                                                                   :configuration_profile_id => nil,
@@ -41,6 +50,8 @@ describe ProviderForemanController do
     get :explorer
     accords = controller.instance_variable_get(:@accords)
     expect(accords.size).to eq(2)
+    breadcrumbs = controller.instance_variable_get(:@breadcrumbs)
+    expect(breadcrumbs[0]).to include(:url => '/provider_foreman/show_list')
     expect(response.status).to eq(200)
     expect(response.body).to_not be_empty
   end
@@ -100,6 +111,29 @@ describe ProviderForemanController do
     set_view_10_per_page
     post :new, :format => :js
     expect(response.status).to eq(200)
+  end
+
+  context "#edit" do
+    before do
+      set_user_privileges
+    end
+
+    it "renders the edit page when the configuration manager id is supplied" do
+      post :edit, :id => @config_mgr.id
+      expect(response.status).to eq(200)
+      right_cell_text = controller.instance_variable_get(:@right_cell_text)
+      expect(right_cell_text).to eq(_("Edit Foreman Provider"))
+    end
+
+    it "renders the edit page when the configuration manager id is selected from a list view" do
+      post :edit, :miq_grid_checks => @config_mgr.id
+      expect(response.status).to eq(200)
+    end
+
+    it "renders the edit page when the configuration manager id is selected from a grid/tile" do
+      post :edit, "check_#{ActiveRecord::Base.compress_id(@config_mgr.id)}" => "1"
+      expect(response.status).to eq(200)
+    end
   end
 
   context "renders right cell text" do
@@ -162,13 +196,57 @@ describe ProviderForemanController do
       controller.stub(:current_page).and_return(1)
       controller.send(:build_foreman_tree, :providers, :foreman_providers_tree)
     end
+    it "renders the list view based on the nodetype(root,provider,config_profile) and the search associated with it" do
+      controller.instance_variable_set(:@_params, :id => "root")
+      controller.instance_variable_set(:@search_text, "manager")
+      controller.send(:tree_select)
+      view = controller.instance_variable_get(:@view)
+      expect(view.table.data.size).to eq(2)
+
+      ems_id = ems_key_for_provider(@provider)
+      controller.instance_variable_set(:@_params, :id => ems_id)
+      controller.send(:tree_select)
+      view = controller.instance_variable_get(:@view)
+      expect(view.table.data[0].description).to eq("testprofile")
+
+      controller.instance_variable_set(:@search_text, "2")
+      controller.send(:tree_select)
+      view = controller.instance_variable_get(:@view)
+      expect(view.table.data[0].description).to eq("testprofile2")
+      config_profile_id2 = config_profile_key(@config_profile2)
+      controller.instance_variable_set(:@_params, :id => config_profile_id2)
+      controller.send(:tree_select)
+      view = controller.instance_variable_get(:@view)
+      expect(view.table.data[0].hostname).to eq("test2a_configured_system")
+
+      controller.instance_variable_set(:@search_text, "2b")
+      controller.send(:tree_select)
+      view = controller.instance_variable_get(:@view)
+      expect(view.table.data[0].hostname).to eq("test2b_configured_system")
+
+      controller.stub(:x_node).and_return("root")
+      controller.stub(:x_tree).and_return(:type => :filter)
+      controller.instance_variable_set(:@_params, :id => "cs_filter")
+      controller.send(:accordion_select)
+      controller.instance_variable_set(:@search_text, "brew")
+      controller.stub(:x_tree).and_return(:type => :providers)
+      controller.instance_variable_set(:@_params, :id => "foreman_providers")
+      controller.send(:accordion_select)
+
+      controller.instance_variable_set(:@_params, :id => "root")
+      controller.send(:tree_select)
+      search_text = controller.instance_variable_get(:@search_text)
+      expect(search_text).to eq("manager")
+      view = controller.instance_variable_get(:@view)
+      expect(view.table.data.size).to eq(2)
+    end
     it "renders tree_select for a ConfigurationManagerForeman node that contains an unassigned profile" do
       ems_id = ems_key_for_provider(@provider)
       controller.instance_variable_set(:@_params, :id => ems_id)
       controller.send(:tree_select)
       view = controller.instance_variable_get(:@view)
       expect(view.table.data[0].data).to include('description' => "testprofile")
-      expect(view.table.data[1]).to include('description' => _("Unassigned Profiles Group"),
+      expect(view.table.data[2]).to include('description' => _("Unassigned Profiles Group"),
                                             'name'        => _("Unassigned Profiles Group"))
     end
 
@@ -265,13 +343,8 @@ describe ProviderForemanController do
   end
 
   def user_with_feature(features)
-    EvmSpecHelper.seed_specific_product_features(*features)
-    feature = MiqProductFeature.find_all_by_identifier(features)
-    test_user_role  = FactoryGirl.create(:miq_user_role,
-                                         :name                 => "test_user_role",
-                                         :miq_product_features => feature)
-    test_user_group = FactoryGirl.create(:miq_group, :miq_user_role => test_user_role)
-    FactoryGirl.create(:user, :userid => 'test_user', :name => 'test_user', :miq_groups => [test_user_group])
+    features = EvmSpecHelper.specific_product_features(*features)
+    FactoryGirl.create(:user, :features => features)
   end
 
   def set_view_10_per_page
@@ -289,6 +362,11 @@ describe ProviderForemanController do
   def ems_key_for_provider(provider)
     ems = ExtManagementSystem.where(:provider_id => provider.id).first
     "e-" + ActiveRecord::Base.compress_id(ems.id)
+  end
+
+  def config_profile_key(config_profile)
+    cp = ConfigurationProfile.where(:id => config_profile.id).first
+    "cp-" + ActiveRecord::Base.compress_id(cp.id)
   end
 
   def ems_id_for_provider(provider)

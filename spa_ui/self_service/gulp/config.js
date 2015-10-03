@@ -287,7 +287,7 @@ module.exports = (function() {
       add: true,
       single_quotes: true
     },
-    devHost: 'http://localhost:4000'
+    devHost: 'http://localhost:3000'
   };
 
   config.build = {
@@ -314,7 +314,7 @@ module.exports = (function() {
   };
 
   config.test = {
-    confFile: __dirname + '/karma.conf.js',
+    confFile: __dirname + '/../karma.conf.js',
     serverEnv: 'dev',
     serverPort: 8888,
     serverApp: serverApp,

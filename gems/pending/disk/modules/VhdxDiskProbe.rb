@@ -7,7 +7,7 @@ VHDX_DISK      = "VhdxDisk"
 VHDX_SIGNATURE = "vhdxfile"
 
 module VhdxDiskProbe
-  def VhdxDiskProbe.probe(ostruct)
+  def self.probe(ostruct)
     return nil unless ostruct.fileName
     # If file not VHD then not Microsoft.
     # Allow ".miq" also.
@@ -26,14 +26,14 @@ module VhdxDiskProbe
     rv
   end
 
-  def VhdxDiskProbe.do_probe(io)
+  def self.do_probe(io)
     io.seek(0)
     magic = io.read(8)
     return VHDX_DISK if magic == VHDX_SIGNATURE
     nil
   end
 
-  def VhdxDiskProbe.connect_to_hyperv(ostruct)
+  def self.connect_to_hyperv(ostruct)
     connection = ostruct.hyperv_connection
     hyperv_disk = MiqHyperVDisk.new(connection[:host], connection[:user], connection[:password], connection[:port])
     hyperv_disk.open(ostruct.fileName)
