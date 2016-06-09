@@ -50,7 +50,6 @@ module MSVSDiffDisk
       #
       # TODO: need details on Mac Alias Blob.
       #
-      # getParentPathMac(locator)
 
       when "MacX"
         # Is platform spanning even something we should do?
@@ -108,11 +107,6 @@ module MSVSDiffDisk
   def getParentPathWin(locator)
     buf = getPathData(locator)
     locator['fileName'] = buf.UnicodeToUtf8!
-  end
-
-  def getParentPathMac(locator)
-    buf = getPathData(locator)
-    # how do I decode a Mac alias blob?
   end
 
   def getParentPathMacX(locator)
