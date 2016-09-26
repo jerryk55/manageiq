@@ -23,6 +23,8 @@
 #       - guest_devices
 #     - custom_attributes
 #     - snapshots
+#   - cloud_object_store_containers
+#     - cloud_object_store_objects
 #   - cloud_services
 #
 
